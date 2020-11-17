@@ -22,14 +22,20 @@ const campgroundRoutes = require('./routes/campgrounds');
 const reviewRoutes = require('./routes/reviews');
 const userRoutes = require('./routes/users');
 
-const { getMaxListeners } = require('./models/user');
+const MongoDBStore = require('connect-mongo')(session);
 
-mongoose.connect('mongodb://localhost:27017/yelp-camp', {
+const { getMaxListeners } = require('./models/user');
+// const dbUrl = process.env.DB_URL;
+const dbUrl = process.env.DB_URL || 'mongodb://localhost:27017/yelp-camp'; //local mongo db
+    
+mongoose.connect(dbUrl, {
     useNewUrlParser: true,
     useCreateIndex: true,
     useUnifiedTopology: true,
     useFindAndModify: false
 });
+
+
 
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "connection error:"));
@@ -50,9 +56,22 @@ app.use(mongoSanitize({
     replaceWith: '_'
 }));
 
+const secret = proces.env.SECRET || 'thisshouldbeabettersecret';
+
+const store = new MongoDBStore({
+    url: dbUrl,
+    secret,
+    touchAfter: 24 * 60 * 60
+});
+
+store.on("error", function (e) {
+    console.log("SESSION STORE ERROR");
+});
+
 const sessionConfig = {
+    store,
     name: 'session', //name of the cookie - instead of default, harder to look for
-    secret: 'thisshouldbeabettersecret',
+    secret,
     resave: false,
     saveUninitialized: true,
     cookie: {
